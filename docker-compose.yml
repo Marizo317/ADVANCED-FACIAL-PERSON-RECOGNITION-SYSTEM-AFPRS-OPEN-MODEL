@@ -1,0 +1,58 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  afprs-vision:
+    build:
+      context: ./vision
+      dockerfile: Dockerfile
+    container_name: afprs-vision
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - DISPLAY=${DISPLAY}
+      - LLM_SERVICE_URL=http://afprs-llm:8001
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./vision/models:/app/models
+      - /dev/video0:/dev/video0
+    devices:
+      - /dev/video0:/dev/video0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - afprs-llm
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - afprs-network
+
+  afprs-llm:
+    build:
+      context: ./llm
+      dockerfile: Dockerfile
+    container_name: afprs-llm
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    ports:
+      - "8001:8001"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - afprs-network
+
+networks:
+  afprs-network:
+    driver: bridge
